@@ -1,9 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import database, security
+from app import security
+from app.database import get_session
+from app.models import User
 
 router = APIRouter()
 
@@ -29,29 +33,36 @@ class TokenResponse(BaseModel):
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def signup(body: SignupRequest):
-    if database.get_user_by_email(body.email):
+async def signup(body: SignupRequest, db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(User).where(User.email == body.email))
+    if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
-    user_id = str(uuid.uuid4())
-    hashed = security.hash_password(body.password)
-    database.create_user(user_id, body.email, hashed)
+    user = User(
+        id=str(uuid.uuid4()),
+        email=body.email,
+        hashed_password=security.hash_password(body.password),
+    )
+    db.add(user)
+    await db.commit()
 
     return TokenResponse(
-        access_token=security.create_access_token(user_id),
-        refresh_token=await security.create_refresh_token(user_id),
+        access_token=security.create_access_token(user.id),
+        refresh_token=await security.create_refresh_token(user.id),
     )
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest):
-    user = database.get_user_by_email(body.email)
-    if not user or not security.verify_password(body.password, user["hashed_password"]):
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    if not user or not security.verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     return TokenResponse(
-        access_token=security.create_access_token(user["id"]),
-        refresh_token=await security.create_refresh_token(user["id"]),
+        access_token=security.create_access_token(user.id),
+        refresh_token=await security.create_refresh_token(user.id),
     )
 
 
@@ -70,4 +81,4 @@ async def logout(body: RefreshRequest):
     try:
         await security.revoke_refresh_token(body.refresh_token)
     except Exception:
-        pass  # already expired or invalid — treat as success
+        pass
