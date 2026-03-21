@@ -9,7 +9,8 @@ It ingests articles from external news sources, indexes them for search, and gen
 The current stack choice is:
 
 - Client: React + JavaScript
-- Backend services: Python + FastAPI
+- REST service: Node.js + Express
+- Ingestion job: Python
 - Persistence: Postgres
 - Scheduling: cron-triggered jobs for ingestion/indexing and feed generation
 
@@ -56,7 +57,7 @@ The client does not talk directly to ingestion or feed generation jobs.
 
 ### 2. REST service
 
-The REST service is a FastAPI application that reads from and writes to the shared database.
+The REST service is a Node/Express application that reads from and writes to the shared database.
 
 Responsibilities:
 
@@ -82,7 +83,6 @@ The ingestion pipeline is triggered by cron every few minutes and performs artic
 Responsibilities:
 
 - fetch RSS feeds
-- run a constrained web crawler to collect initial article URLs during bootstrap
 - discover new article URLs
 - normalize URLs
 - scrape article pages
@@ -95,6 +95,15 @@ Responsibilities:
 - prepare article-side text representations used later by recommendations
 
 For the MVP, ingestion and indexing stay together in one cron job to keep the system simple. We may split them into separate stages later if indexing work grows enough to justify more decoupling.
+
+The current first step of that pipeline lives under the top-level `ingestion/` folder as a Python job. It separates RSS discovery from article scraping:
+
+- source modules discover article URLs and RSS metadata
+- a downstream scraper fetches and extracts article content
+- the first implemented source is BBC News RSS
+- the current implementation persists new articles and updates search index tables in the same ingestion run
+- configuration comes from `application.yaml` with environment-variable overrides
+- the Docker Compose deployment runs the ingestion container on a 15-minute cron schedule by default
 
 ### 5. Feed generation job
 
@@ -148,17 +157,7 @@ Important rules:
 
 ## Ingestion strategy
 
-### Bootstrap phase
-
-The first dataset is created through a constrained web crawler over archive, category, or pagination pages.
-
-This is a one-time or occasional process used to seed the database with historical content.
-
-The crawler is intentionally constrained and is meant to gather enough initial content for the MVP rather than behave like a broad general-purpose crawler.
-
-### Ongoing ingestion phase
-
-After bootstrap, ongoing ingestion is feed-driven.
+The ingestion pipeline is fully RSS-driven.
 
 Flow:
 
@@ -173,8 +172,6 @@ cron trigger
 → store article
 → update search index data
 ```
-
-No full BFS crawling is part of normal operation after bootstrap.
 
 ## Search design
 
@@ -203,6 +200,8 @@ user query
 - sparse representations should be used rather than dense full-vocabulary vectors
 - document frequencies and postings should be updated incrementally during the scheduled ingestion/indexing run
 - full rebuilds on every new article should be avoided
+- v1 indexing uses one combined text representation per article built from title plus body
+- title-aware boosts belong in the scoring layer, not a separate title index in v1
 
 ### Search logging
 
@@ -269,6 +268,7 @@ score = recency + popularity + clickMatch + searchMatch
 #### Click signal
 
 - represent articles with TF-IDF-style text features
+- build those article features from the same combined title+body text used by search indexing
 - combine recently clicked article vectors into a user click profile
 - compare candidate articles against that profile with cosine similarity
 
@@ -276,7 +276,7 @@ score = recency + popularity + clickMatch + searchMatch
 
 - take the user's recent queries
 - vectorize them into a query-interest profile
-- compare candidate articles against that profile
+- compare candidate articles against the same combined article text representation
 
 ### Candidate generation for personalized feeds
 
@@ -378,10 +378,9 @@ Why:
 Included in MVP:
 
 - React frontend
-- Python FastAPI backend
+- Node/Express REST backend
 - shared database
 - RSS-based ingestion
-- constrained bootstrap web crawler
 - single cron-based ingestion and indexing pipeline
 - TF-IDF/cosine search
 - default feed
@@ -398,7 +397,7 @@ Not in MVP:
 - neural recommenders
 - PageRank
 - queue-based decoupling between ingestion and indexing
-- broad general-purpose crawling after bootstrap
+- any web crawler for article discovery
 
 ## Operational notes
 
@@ -410,4 +409,4 @@ Not in MVP:
 
 ## One-paragraph summary
 
-This project is a news ingestion, search, and recommendation system built with a React client, a Python FastAPI backend, cron jobs, and a shared database. Articles are seeded with a constrained web crawler and then kept fresh through RSS-driven ingestion. For the MVP, the same scheduled ingestion job also updates the search index, while a separate batch feed job precomputes both a default cold-start feed and personalized feeds every 15 minutes. Search uses TF-IDF and cosine similarity, while personalization is unlocked only after a user reaches at least 5 searches and 15 clicks.
+This project is a news ingestion, search, and recommendation system built with a React client, a Node/Express REST backend, Python cron jobs, and a shared database. Articles are discovered from configured RSS feeds and processed by the ingestion job, which also updates the search index for the MVP. A separate batch feed job precomputes both a default cold-start feed and personalized feeds every 15 minutes. Search uses TF-IDF and cosine similarity, while personalization is unlocked only after a user reaches at least 5 searches and 15 clicks.

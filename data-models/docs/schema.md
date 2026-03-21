@@ -32,7 +32,6 @@ Key fields:
 - `scraped_at`
 - `body_length`
 - `is_valid`
-- `content_hash`
 
 `normalized_url` is the cleaned canonical article URL used for deduplication.
 It removes irrelevant differences such as tracking parameters, fragments, and host casing so the same article is not stored twice under slightly different URLs.

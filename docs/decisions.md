@@ -10,21 +10,19 @@ It exists to give future contributors and agents clear context on *why* the syst
 ## 1. Data Ingestion Strategy
 
 ### Decision
-Use a **hybrid ingestion model**:
-- Initial **constrained web crawl** for historical data
-- Ongoing **RSS-based ingestion** for new articles
+Use **RSS-based ingestion** for article discovery.
 
 ### Reasoning
 - RSS provides structured, reliable, and low-cost updates
-- A constrained crawler is enough to seed the MVP dataset
-- Reduces complexity and risk of scraping irrelevant pages
+- Keeps the ingestion boundary simple and deterministic
+- Avoids crawler complexity and irrelevant-page discovery
 
 ---
 
-## 2. Avoid Full Web Crawling
+## 2. No Web Crawler
 
 ### Decision
-Do **not implement a broad general-purpose crawler** beyond initial bootstrap.
+Do **not implement a web crawler** for article discovery in the MVP.
 
 ### Reasoning
 - Not needed for a news-focused system
@@ -76,7 +74,19 @@ Update index **incrementally** during the scheduled ingestion/indexing workflow.
 
 ---
 
-## 6. Recommendation System Approach
+## 6. Combined Article Indexing
+
+### Decision
+Index each article as one combined text document built from its title and body.
+
+### Reasoning
+- Fits the current schema without adding separate field-specific index tables
+- Works for both search and recommendation features in the MVP
+- Keeps title-aware relevance as a later scoring concern rather than a schema change now
+
+---
+
+## 7. Recommendation System Approach
 
 ### Decision
 Use a **hybrid recommender** based on:
@@ -92,7 +102,7 @@ Use a **hybrid recommender** based on:
 
 ---
 
-## 7. Cold Start Strategy
+## 8. Cold Start Strategy
 
 ### Decision
 Users remain on default feed until:
@@ -106,7 +116,7 @@ Users remain on default feed until:
 
 ---
 
-## 8. Default Feed
+## 9. Default Feed
 
 ### Decision
 Default feed is based on:
@@ -120,7 +130,7 @@ Default feed is based on:
 
 ---
 
-## 9. Personalized Feed
+## 10. Personalized Feed
 
 ### Decision
 Personalized feed uses:
@@ -134,7 +144,7 @@ Personalized feed uses:
 
 ---
 
-## 10. No Category Normalization
+## 11. No Category Normalization
 
 ### Decision
 Do **not store categories in the MVP article schema** and do not rely on them for recommendations.
@@ -146,7 +156,7 @@ Do **not store categories in the MVP article schema** and do not rely on them fo
 
 ---
 
-## 11. Candidate Generation Strategy
+## 12. Candidate Generation Strategy
 
 ### Decision
 Do **not score entire corpus**.
@@ -164,7 +174,7 @@ Instead, generate candidates from:
 
 ---
 
-## 12. Feed Generation Strategy
+## 13. Feed Generation Strategy
 
 ### Decision
 Use **batch feed generation every 15 minutes**.
@@ -172,11 +182,11 @@ Use **batch feed generation every 15 minutes**.
 ### Reasoning
 - Favors availability over real-time freshness
 - Simplifies serving layer
-- Keeps request handling lightweight in the FastAPI service
+- Keeps request handling lightweight in the REST service
 
 ---
 
-## 13. No Real-Time Feed Updates
+## 14. No Real-Time Feed Updates
 
 ### Decision
 Do not update feed immediately after user actions.
@@ -188,7 +198,7 @@ Do not update feed immediately after user actions.
 
 ---
 
-## 14. Precomputed Feeds
+## 15. Precomputed Feeds
 
 ### Decision
 Store:
@@ -202,11 +212,11 @@ Store:
 
 ---
 
-## 15. Service Architecture
+## 16. Service Architecture
 
 ### Decision
 Use a small set of MVP services:
-- FastAPI REST API service
+- Node/Express REST API service
 - scheduled ingestion and indexing job
 - scheduled feed generation job
 
@@ -220,7 +230,7 @@ Connected via:
 
 ---
 
-## 16. Ingestion and Indexing in One Job
+## 17. Ingestion and Indexing in One Job
 
 ### Decision
 Run ingestion and indexing in the same cron-triggered workflow for now.
@@ -232,7 +242,19 @@ Run ingestion and indexing in the same cron-triggered workflow for now.
 
 ---
 
-## 17. Defer Extra Decoupling Until After MVP
+## 18. YAML Config With Environment Overrides
+
+### Decision
+Store ingestion runtime defaults in `application.yaml` and allow environment variables to override them.
+
+### Reasoning
+- Keeps local defaults easy to inspect and edit
+- Makes deployment configuration straightforward in Docker Compose
+- Allows database URL and port changes without changing code
+
+---
+
+## 19. Defer Extra Decoupling Until After MVP
 
 ### Decision
 Do not introduce queue-based decoupling between ingestion and indexing yet.
@@ -250,7 +272,7 @@ Add more decoupling later only if scale or reliability needs justify it.
 
 ---
 
-## 18. Feed Scope
+## 20. Feed Scope
 
 ### Decision
 Recommendation system is used **only for the feed**.
@@ -261,7 +283,7 @@ Recommendation system is used **only for the feed**.
 
 ---
 
-## 19. Click-Only Engagement Tracking
+## 21. Click-Only Engagement Tracking
 
 ### Decision
 Track only `click` as the article engagement event for the MVP.
@@ -273,7 +295,7 @@ Track only `click` as the article engagement event for the MVP.
 
 ---
 
-## 20. Current-State Feed Storage
+## 22. Current-State Feed Storage
 
 ### Decision
 Store one current default feed and one current personalized feed per user, updating those rows in place during feed generation.
@@ -285,7 +307,7 @@ Store one current default feed and one current personalized feed per user, updat
 
 ---
 
-## 21. Database Definitions Live In `data-models/`
+## 23. Database Definitions Live In `data-models/`
 
 ### Decision
 Use the top-level `data-models/` folder as the only source of truth for schema definitions and migrations.
@@ -298,7 +320,7 @@ Use the top-level `data-models/` folder as the only source of truth for schema d
 
 ---
 
-## 22. Simplicity Over Perfection
+## 24. Simplicity Over Perfection
 
 ### Decision
 Favor:
@@ -331,4 +353,4 @@ While intentionally avoiding:
 - unnecessary complexity
 - heavy real-time computation
 - queue-based decoupling before it is needed
-- broad crawling beyond the constrained bootstrap phase
+- crawler-based article discovery

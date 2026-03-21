@@ -19,6 +19,20 @@ services:
       timeout: 5s
       retries: 5
 
+  ingestion:
+    build:
+      context: ./ingestion
+    container_name: app-ingestion
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      THING_DATABASE_URL: ${THING_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/appdb}
+      THING_DATABASE_HOST: ${THING_DATABASE_HOST:-postgres}
+      THING_DATABASE_PORT: ${THING_DATABASE_PORT:-5432}
+      THING_INGESTION_SCHEDULE: "${THING_INGESTION_SCHEDULE:-*/15 * * * *}"
+
   redis:
     image: redis:7
     container_name: app-redis

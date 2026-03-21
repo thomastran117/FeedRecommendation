@@ -1,0 +1,7 @@
+beautifulsoup4<5,>=4.12.3
+psycopg[binary]<4,>=3.2.9
+PyYAML<7,>=6.0.2
+requests<3,>=2.32.3
+
+[dev]
+pytest<9,>=8.3.5

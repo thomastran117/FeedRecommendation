@@ -1,0 +1,9 @@
+database:
+  url: postgresql://postgres:postgres@postgres:5432/appdb
+  host: postgres
+  port: 5432
+
+ingestion:
+  schedule: "*/15 * * * *"
+  feed_urls:
+    - https://feeds.bbci.co.uk/news/rss.xml
