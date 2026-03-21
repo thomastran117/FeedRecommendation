@@ -69,7 +69,7 @@ jobs:
 
             // --- Build prompts ---
             const systemPrompt =
-              "You are a senior software engineer reviewing pull requests for a online learning platform" +
+              "You are a senior software engineer reviewing pull requests" +
               "This is NOT a strict production environment — feedback should be constructive, practical, and encouraging. " + 
               "Flag issues clearly, and provide an action to address it.\n\n" +
 
@@ -110,17 +110,13 @@ jobs:
               "## Stack-Specific Notes section:\n" +
               "Only include subsections relevant to what changed in the diff. Choose from:\n\n" +
 
-              "### React / TypeScript\n" +
-              "Review for: avoid `any` types, component structure, hook correctness, prop drilling, " +
-              "accessibility (a11y), and patterns suitable for a learning platform UI.\n\n" +
+              "### React / JavaScript \n" +
+              "Review for: component structure, hook correctness, prop drilling, " +
+              "accessibility (a11y), and patterns suitable.\n\n" +
 
-              "### C# / .NET\n" +
-              "Review for: async/await correctness, dependency injection, EF Core usage, " +
+              "### Node.js / Express\n" +
+              "Review for: async/await correctness, procedural programming, " +
               "error handling, RESTful API design, and input validation/auth checks.\n\n" +
-
-              "### Node.js / JavaScript\n" +
-              "Review for: async error handling, dependency hygiene, security (injection, env secrets), " +
-              "and clean module structure.\n\n" +
 
               "If none of the above stacks are present in the diff, write 'Not applicable for this diff.'\n\n" +
 
