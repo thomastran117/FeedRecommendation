@@ -1,15 +1,35 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import security
+from app.config import settings
 from app.database import get_session
 from app.models import User
 
 router = APIRouter()
+
+_COOKIE_NAME = "refresh_token"
+_COOKIE_MAX_AGE = settings.refresh_token_expire_days * 24 * 60 * 60
+
+
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=_COOKIE_MAX_AGE,
+        path="/auth",
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(key=_COOKIE_NAME, path="/auth")
 
 
 class SignupRequest(BaseModel):
@@ -22,18 +42,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class RefreshRequest(BaseModel):
-    refresh_token: str
-
-
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def signup(body: SignupRequest, db: AsyncSession = Depends(get_session)):
+async def signup(body: SignupRequest, response: Response, db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
@@ -46,39 +61,46 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_session)):
     db.add(user)
     await db.commit()
 
-    return TokenResponse(
-        access_token=security.create_access_token(user.id),
-        refresh_token=await security.create_refresh_token(user.id),
-    )
+    _set_refresh_cookie(response, await security.create_refresh_token(user.id))
+    return TokenResponse(access_token=security.create_access_token(user.id))
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_session)):
+async def login(body: LoginRequest, response: Response, db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
     if not user or not security.verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    return TokenResponse(
-        access_token=security.create_access_token(user.id),
-        refresh_token=await security.create_refresh_token(user.id),
-    )
+    _set_refresh_cookie(response, await security.create_refresh_token(user.id))
+    return TokenResponse(access_token=security.create_access_token(user.id))
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshRequest):
+async def refresh(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None, alias=_COOKIE_NAME),
+):
+    if not refresh_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
     try:
-        access_token, refresh_token = await security.rotate_refresh_token(body.refresh_token)
+        access_token, new_refresh_token = await security.rotate_refresh_token(refresh_token)
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
 
-    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
+    _set_refresh_cookie(response, new_refresh_token)
+    return TokenResponse(access_token=access_token)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(body: RefreshRequest):
-    try:
-        await security.revoke_refresh_token(body.refresh_token)
-    except Exception:
-        pass
+async def logout(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None, alias=_COOKIE_NAME),
+):
+    if refresh_token:
+        try:
+            await security.revoke_refresh_token(refresh_token)
+        except Exception:
+            pass
+    _clear_refresh_cookie(response)
