@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>BBC News - Home</title>
+    <link>https://www.bbc.com/news</link>
+    <item>
+      <title>Article One</title>
+      <link>https://www.bbc.com/news/articles/ce12345?utm_source=rss&amp;utm_medium=feed#section</link>
+      <pubDate>Sat, 21 Mar 2026 09:00:00 GMT</pubDate>
+      <dc:creator>BBC News</dc:creator>
+    </item>
+    <item>
+      <title>Article Two</title>
+      <link>https://www.bbc.com/news/articles/ce67890</link>
+      <pubDate>Sat, 21 Mar 2026 08:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Article Three</title>
+      <link>https://www.bbc.com/news/world-12345678?at_medium=RSS</link>
+      <pubDate>Sat, 21 Mar 2026 07:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Article Four</title>
+      <link>https://www.bbc.com/news/uk-23456789</link>
+      <pubDate>Sat, 21 Mar 2026 06:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Article Five</title>
+      <link>https://www.bbc.com/news/business-34567890</link>
+      <pubDate>Sat, 21 Mar 2026 05:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Article Six</title>
+      <link>https://www.bbc.com/news/science-environment-45678901</link>
+      <pubDate>Sat, 21 Mar 2026 04:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

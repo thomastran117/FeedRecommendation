@@ -20,7 +20,6 @@ CREATE TABLE articles (
     scraped_at TIMESTAMPTZ NOT NULL,
     body_length INTEGER NOT NULL CHECK (body_length >= 0),
     is_valid BOOLEAN NOT NULL DEFAULT TRUE,
-    content_hash TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

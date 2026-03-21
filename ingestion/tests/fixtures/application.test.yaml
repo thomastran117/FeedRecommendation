@@ -1,0 +1,9 @@
+database:
+  url: postgresql://yaml-user:yaml-pass@yaml-host:6543/yaml-db
+  host: yaml-host
+  port: 6543
+
+ingestion:
+  schedule: "*/15 * * * *"
+  feed_urls:
+    - https://feeds.bbci.co.uk/news/rss.xml
