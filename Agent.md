@@ -39,13 +39,26 @@ The purpose of this documentation is:
 
 Code should stay clean and readable without relying on comments.
 
+Database definitions live in the top-level `data-models/` folder.
+
 ## Documentation rules
 
 - Add or update Markdown docs in `docs/` for all meaningful changes.
+- Add or update Markdown docs in `data-models/docs/` for all meaningful database structure changes.
 - Prefer updating an existing doc over creating duplicate docs.
 - Create a new doc only when the topic does not already have a logical place.
 - Keep docs concise, specific, and accurate.
 - Write docs so another agent can use them as reference during future tasks.
+- Keep `docs/architecture.md` aligned with the actual service boundaries and data flow.
+
+## Database definition rules
+
+- `data-models/` is the only source of truth for database schema definitions and migrations.
+- Put canonical schema definitions under `data-models/schema/`.
+- Put canonical migration files under `data-models/migrations/`.
+- Application-layer ORMs may read or query the database, but they must not define schema, own migrations, or become the source of truth.
+- Any ORM schema files kept in application folders must be treated as consumer mirrors or generated artifacts.
+- When database structure changes, update both `docs/` and `data-models/docs/` so the storage model stays discoverable.
 
 ## Documentation structure
 
@@ -76,6 +89,29 @@ Update `docs/` whenever you:
 - make a decision future agents need to understand
 
 Do not leave important behavior documented only in tests or code.
+
+## Project architecture context
+
+This project currently assumes the following architecture unless updated in `docs/architecture.md`:
+
+- React + JavaScript client
+- Python + FastAPI backend services
+- cron-triggered ingestion/indexing and feed generation jobs
+- a shared relational database used by multiple services
+- a REST service that serves client-facing data and logs user behavior
+
+Current architectural decisions to preserve unless intentionally changed:
+
+- ingestion and feed generation are batch/scheduled workflows
+- ingestion and indexing currently run in the same scheduled job for MVP simplicity
+- a constrained web crawler is used to seed initial content
+- feeds are precomputed every 15 minutes
+- a global default feed must always exist
+- personalized feeds only apply after a user reaches at least 5 searches and 15 clicks
+- category normalization is not required for the MVP
+- search is based on TF-IDF, cosine similarity, and simple boosts rather than PageRank
+
+Before changing any of these assumptions, update `docs/architecture.md` and any related docs.
 
 ## Code documentation rules
 
