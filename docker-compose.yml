@@ -19,6 +19,16 @@ services:
       timeout: 5s
       retries: 5
 
+  client:
+    build:
+      context: ./client
+    container_name: app-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+
   server:
     build:
       context: ./server
