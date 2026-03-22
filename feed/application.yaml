@@ -1,0 +1,11 @@
+database:
+  url: postgresql://postgres:postgres@postgres:5432/appdb
+  host: postgres
+  port: 5432
+
+feed:
+  schedule: "*/15 * * * *"
+  article_window_days: 7
+  default_feed_size: 50
+  recency_weight: 0.7
+  popularity_weight: 0.3
