@@ -4,16 +4,18 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app import rabbitmq
+from app import database, rabbitmq
 from app.middleware import ErrorHandlingMiddleware
-from app.routers import auth, events
+from app.routers import auth, events, search
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await database.create_pool()
     await rabbitmq.connect()
     yield
     await rabbitmq.disconnect()
+    await database.close_pool()
 
 
 app = FastAPI(title="API Server", lifespan=lifespan)
@@ -31,6 +33,7 @@ async def validation_error_handler(request, exc: RequestValidationError):
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(events.router, prefix="/events", tags=["events"])
+app.include_router(search.router, prefix="/search", tags=["search"])
 
 
 @app.get("/health")

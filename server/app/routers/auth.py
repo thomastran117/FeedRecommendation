@@ -1,14 +1,9 @@
-import uuid
-
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import security
 from app.config import settings
-from app.database import get_session
-from app.models import User
+from app.database import get_pool
 
 router = APIRouter()
 
@@ -48,33 +43,42 @@ class TokenResponse(BaseModel):
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def signup(body: SignupRequest, response: Response, db: AsyncSession = Depends(get_session)):
-    result = await db.execute(select(User).where(User.email == body.email))
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+async def signup(body: SignupRequest, response: Response):
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        existing = await conn.fetchrow(
+            "SELECT id FROM users WHERE email = $1",
+            body.email,
+        )
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
-    user = User(
-        id=str(uuid.uuid4()),
-        email=body.email,
-        hashed_password=security.hash_password(body.password),
-    )
-    db.add(user)
-    await db.commit()
+        row = await conn.fetchrow(
+            "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id",
+            body.email,
+            security.hash_password(body.password),
+        )
 
-    _set_refresh_cookie(response, await security.create_refresh_token(user.id))
-    return TokenResponse(access_token=security.create_access_token(user.id))
+    user_id = str(row["id"])
+    _set_refresh_cookie(response, await security.create_refresh_token(user_id))
+    return TokenResponse(access_token=security.create_access_token(user_id))
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, response: Response, db: AsyncSession = Depends(get_session)):
-    result = await db.execute(select(User).where(User.email == body.email))
-    user = result.scalar_one_or_none()
+async def login(body: LoginRequest, response: Response):
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, password FROM users WHERE email = $1",
+            body.email,
+        )
 
-    if not user or not security.verify_password(body.password, user.hashed_password):
+    if not row or not security.verify_password(body.password, row["password"]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
-    _set_refresh_cookie(response, await security.create_refresh_token(user.id))
-    return TokenResponse(access_token=security.create_access_token(user.id))
+    user_id = str(row["id"])
+    _set_refresh_cookie(response, await security.create_refresh_token(user_id))
+    return TokenResponse(access_token=security.create_access_token(user_id))
 
 
 @router.post("/refresh", response_model=TokenResponse)

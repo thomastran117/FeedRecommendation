@@ -19,6 +19,36 @@ services:
       timeout: 5s
       retries: 5
 
+  client:
+    build:
+      context: ./client
+    container_name: app-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+
+  server:
+    build:
+      context: ./server
+    container_name: app-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/appdb}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+    ports:
+      - "8000:8000"
+
   ingestion:
     build:
       context: ./ingestion
